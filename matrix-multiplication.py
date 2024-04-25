@@ -70,7 +70,7 @@ else:
 
     for r in range(1, size):
         Cr_other_process = comm.recv(source=r)
-        C = np.vstack((C, Cr))
+        C = np.vstack((C, Cr_other_process))
 
     time_end = time.process_time()
     print(f'C:\n{C}')
