@@ -18,6 +18,14 @@ def main():
         # Load the matrices from files
         A = np.load(matrix_file_a)['arr_0']
         B = np.load(matrix_file_b)['arr_0']
+        
+        padding_size = size - (n % size)
+
+        # Padding A and B if n is not divisible by size
+        if n % size != 0:
+            A = np.pad(A, ((0, padding_size), (0, 0)), mode='constant', constant_values=0)
+            B = np.pad(B, ((0, 0), (0, padding_size)), mode='constant', constant_values=0)
+            n += padding_size
     else:
         A = None
         B = None
@@ -37,7 +45,10 @@ def main():
     # Scatter rows of A and columns of B
     A_local = comm.scatter(A_splits, root=0)
     B_local = comm.scatter(B_splits, root=0)
-
+    
+    print(f"Process {rank} received A_local:\n{A_local}\n")
+    print(f"Process {rank} received B_local:\n{B_local}\n")
+    
     # Local computation of matrix multiplication with ring communication
     C_local = np.zeros((A_local.shape[0], n))
     current_B = B_local.copy()
@@ -59,10 +70,13 @@ def main():
     # Gather all local C matrices
     C_gathered = comm.gather(C_local, root=0)
 
-    # Assemble the final matrix C
+    # Assemble the final matrix C and remove padding
     if rank == 0:
         end = time.process_time()
         C = np.hstack(np.split(np.vstack(C_gathered), size, axis=1))
+        # Removing padding from the matrix C
+        if padding_size >= 0:
+	          C = C[:-padding_size, :-padding_size]
         with open("result_v2.txt", "a") as file:
             file.write(f'Multiplying matrices with n = {n} and p = {size}\n')
             file.write("Resulting Matrix C:\n")
